@@ -581,7 +581,7 @@ export default function RunningTracker() {
           ) : (
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="mt-1" disabled={!bluetoothSupported || isRunning}>
+                <Button variant="outline" size="sm" className="mt-1" disabled={bluetoothSupported || isRunning}>
                   <Bluetooth className="w-3 h-3 mr-1" />
                   Connect
                 </Button>
