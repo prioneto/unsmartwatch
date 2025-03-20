@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pause, Play, RotateCcw, Flag, Heart, Download, Bluetooth, MapPin, X } from "lucide-react";
+import { Pause, Play, RotateCcw, Flag, Heart, Download, Bluetooth, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Position {
   latitude: number;
@@ -73,7 +71,7 @@ interface BluetoothRemoteGATTCharacteristic {
 // Define BluetoothServiceUUID type
 type BluetoothServiceUUID = string | number;
 
-interface Bluetooth {
+interface BluetoothType {
   requestDevice(options: {
     filters?: Array<{
       services?: string[];
@@ -90,7 +88,7 @@ interface Bluetooth {
 // Extend Navigator interface globally
 declare global {
   interface Navigator {
-    bluetooth: Bluetooth;
+    bluetooth: BluetoothType;
   }
 }
 
@@ -121,12 +119,13 @@ export default function RunningTracker() {
   const [activityCompleted, setActivityCompleted] = useState(false);
   const [activity, setActivity] = useState<Activity | null>(null);
   const [showFullMap, setShowFullMap] = useState(false);
-  const [activeTab, setActiveTab] = useState("stats");
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const lastPositionsRef = useRef<Position[]>([]);
   const heartRateDeviceRef = useRef<BluetoothDevice | null>(null);
   const startTimeRef = useRef<number | null>(null);
+  const lastPaceUpdateRef = useRef<number>(0);
+  const recentPacesRef = useRef<number[]>([]);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -205,7 +204,6 @@ export default function RunningTracker() {
     if (isRunning && !watchId) {
       const id = navigator.geolocation.watchPosition(
         (position) => {
-          console.log("New position:", position);
           const newPosition = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -226,17 +224,33 @@ export default function RunningTracker() {
             const newDistance = calculateTotalDistance(lastPositionsRef.current);
             setDistance(newDistance);
 
-            // Calculate current pace (min/km)
+            // Calculate current pace (min/km) - FIXED CALCULATION
             if (time > 0 && newDistance > 0) {
-              // Get positions from last 30 seconds for current pace
-              const recentPositions = getRecentPositions(lastPositionsRef.current, 30);
-              if (recentPositions.length > 1) {
-                const recentDistance = calculateTotalDistance(recentPositions);
-                const recentTimeInMinutes = (recentPositions[recentPositions.length - 1].timestamp - recentPositions[0].timestamp) / 1000 / 60;
+              // Only update pace every 5 seconds to avoid jumpy values
+              const now = Date.now();
+              if (now - lastPaceUpdateRef.current > 5000) {
+                lastPaceUpdateRef.current = now;
 
-                if (recentTimeInMinutes > 0) {
-                  const pace = recentTimeInMinutes / recentDistance;
-                  setCurrentPace(formatPace(pace));
+                // Get positions from last 60 seconds for more stable pace
+                const recentPositions = getRecentPositions(lastPositionsRef.current, 60);
+                if (recentPositions.length > 1) {
+                  const recentDistance = calculateTotalDistance(recentPositions);
+                  const recentTimeInMinutes = (recentPositions[recentPositions.length - 1].timestamp - recentPositions[0].timestamp) / 1000 / 60;
+
+                  if (recentTimeInMinutes > 0 && recentDistance > 0) {
+                    const pace = recentTimeInMinutes / recentDistance;
+
+                    // Add to recent paces for smoothing
+                    recentPacesRef.current.push(pace);
+                    // Keep only last 3 pace calculations
+                    if (recentPacesRef.current.length > 3) {
+                      recentPacesRef.current.shift();
+                    }
+
+                    // Average the recent paces for smoother display
+                    const avgPace = recentPacesRef.current.reduce((sum, p) => sum + p, 0) / recentPacesRef.current.length;
+                    setCurrentPace(formatPace(avgPace));
+                  }
                 }
               }
             }
@@ -268,14 +282,7 @@ export default function RunningTracker() {
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [isRunning, watchId]);
-
-  // When the user starts running, switch to the map tab
-  useEffect(() => {
-    if (isRunning) {
-      setActiveTab("map");
-    }
-  }, [isRunning]);
+  }, [isRunning, watchId, time]);
 
   const startStop = () => {
     setIsRunning(!isRunning);
@@ -293,6 +300,7 @@ export default function RunningTracker() {
     setActivity(null);
     lastPositionsRef.current = [];
     startTimeRef.current = null;
+    recentPacesRef.current = [];
 
     if (watchId) {
       navigator.geolocation.clearWatch(watchId);
@@ -545,25 +553,27 @@ export default function RunningTracker() {
   // Main stats panel
   const renderStatsPanel = () => (
     <>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+      {/* Top stats grid */}
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm">
           <span className="text-sm text-gray-500">Time</span>
           <span className="text-3xl font-bold tabular-nums">{formatTime(time)}</span>
         </div>
-        <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-sm">
+        <div className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm">
           <span className="text-sm text-gray-500">Distance (km)</span>
           <span className="text-3xl font-bold tabular-nums">{formatDistance(distance)}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col items-center p-4 bg-primary/10 rounded-lg">
+      {/* Middle stats grid */}
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="flex flex-col items-center p-4 bg-primary/10 rounded-2xl">
           <span className="text-sm text-gray-500">Current Pace</span>
           <span className="text-2xl font-bold tabular-nums">{currentPace}</span>
           <span className="text-xs text-gray-500">min/km</span>
         </div>
 
-        <div className={cn("flex flex-col items-center p-4 rounded-lg", isHeartRateConnected ? "bg-red-100" : "bg-gray-100")}>
+        <div className={cn("flex flex-col items-center p-4 rounded-2xl", isHeartRateConnected ? "bg-red-100" : "bg-gray-100")}>
           <div className="flex items-center gap-1">
             <Heart className={cn("w-4 h-4", isHeartRateConnected ? "text-red-500" : "text-gray-400")} />
             <span className="text-sm text-gray-500">Heart Rate</span>
@@ -578,7 +588,7 @@ export default function RunningTracker() {
                   Connect
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="rounded-2xl">
                 <DialogHeader>
                   <DialogTitle>Connect Heart Rate Monitor</DialogTitle>
                   <DialogDescription>Select your Bluetooth heart rate monitor device.</DialogDescription>
@@ -608,7 +618,37 @@ export default function RunningTracker() {
           <span className="text-xs text-gray-500">bpm</span>
         </div>
       </div>
+      {/* Full-width map */}
+      <div className="w-full h-[300px] bg-white rounded-2xl shadow-sm overflow-hidden">
+        <RunningMap positions={positions} currentPosition={positions.length > 0 ? positions[positions.length - 1] : undefined} />
+      </div>
+      {/* iOS-style control buttons */}
+      <div className="mt-6 flex justify-between items-center">
+        <Button variant="outline" size="icon" onClick={reset} disabled={permissionDenied} className="h-16 w-16 rounded-full shadow-md bg-white">
+          <RotateCcw className="w-6 h-6" />
+        </Button>
 
+        <Button
+          variant="default"
+          onClick={startStop}
+          disabled={permissionDenied}
+          className={cn("h-20 w-20 rounded-full shadow-lg text-lg font-semibold", isRunning ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600")}
+        >
+          {isRunning ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
+        </Button>
+
+        <Button variant="outline" size="icon" onClick={recordLap} disabled={!isRunning || permissionDenied} className="h-16 w-16 rounded-full shadow-md bg-white">
+          <Flag className="w-6 h-6" />
+        </Button>
+      </div>
+
+      {isHeartRateConnected && (
+        <Button variant="outline" size="sm" onClick={disconnectHeartRateMonitor} className="mx-auto mb-4 rounded-full">
+          Disconnect Heart Rate Monitor
+        </Button>
+      )}
+
+      {/* Laps section */}
       {laps.length > 0 && (
         <div className="mt-4">
           <h3 className="mb-2 font-semibold">Laps</h3>
@@ -639,34 +679,6 @@ export default function RunningTracker() {
         </div>
       )}
     </>
-  );
-
-  // Map panel
-  const renderMapPanel = () => (
-    <div className="relative">
-      <div className="h-[300px] rounded-lg overflow-hidden">
-        <RunningMap positions={positions} currentPosition={positions.length > 0 ? positions[positions.length - 1] : undefined} />
-      </div>
-      <Button variant="outline" size="sm" className="absolute top-2 right-2 bg-white shadow-sm" onClick={toggleFullMap}>
-        <MapPin className="w-4 h-4" />
-        <span className="ml-1">Expand</span>
-      </Button>
-
-      <div className="grid grid-cols-3 gap-4 mt-4">
-        <div className="flex flex-col items-center p-2 bg-white rounded-lg shadow-sm">
-          <span className="text-xs text-gray-500">Distance</span>
-          <span className="text-xl font-bold tabular-nums">{formatDistance(distance)}</span>
-        </div>
-        <div className="flex flex-col items-center p-2 bg-white rounded-lg shadow-sm">
-          <span className="text-xs text-gray-500">Time</span>
-          <span className="text-xl font-bold tabular-nums">{formatTime(time)}</span>
-        </div>
-        <div className="flex flex-col items-center p-2 bg-white rounded-lg shadow-sm">
-          <span className="text-xs text-gray-500">Pace</span>
-          <span className="text-xl font-bold tabular-nums">{currentPace}</span>
-        </div>
-      </div>
-    </div>
   );
 
   return (
@@ -705,63 +717,38 @@ export default function RunningTracker() {
         </div>
       )}
 
-      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-center">Running Tracker</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {permissionDenied ? (
-              <div className="p-4 text-center text-red-500 bg-red-50 rounded-md">Location permission denied. Please enable location services to use this app.</div>
-            ) : error ? (
-              <div className="p-4 text-center text-red-500 bg-red-50 rounded-md">{error}</div>
-            ) : (
-              <>
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="stats">Stats</TabsTrigger>
-                    <TabsTrigger value="map">Map</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="stats" className="space-y-4 mt-2">
-                    {renderStatsPanel()}
-                  </TabsContent>
-                  <TabsContent value="map" className="mt-2">
-                    {renderMapPanel()}
-                  </TabsContent>
-                </Tabs>
+      <div className="flex flex-col h-screen">
+        {/* App content */}
+        <div className="flex-1 flex flex-col p-4">
+          {permissionDenied ? (
+            <div className="p-6 text-center text-red-500 bg-red-50 h-full flex items-center justify-center">
+              <div>
+                <p className="font-semibold mb-2">Location Permission Denied</p>
+                <p className="text-sm">Please enable location services to use this app.</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="p-6 text-center text-red-500 bg-red-50 h-full flex items-center justify-center">
+              <div>
+                <p className="font-semibold mb-2">Error</p>
+                <p className="text-sm">{error}</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="gap-4 flex-col flex mb-2">{renderStatsPanel()}</div>
 
-                {activityCompleted && (
-                  <div className="flex justify-center mt-2">
-                    <Button variant="outline" size="sm" onClick={exportGPX} className="flex items-center gap-1">
-                      <Download className="w-4 h-4" />
-                      Export GPX
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" size="icon" onClick={reset} disabled={permissionDenied}>
-              <RotateCcw className="w-5 h-5" />
-            </Button>
-
-            <Button variant="default" size="lg" onClick={startStop} disabled={permissionDenied} className={cn("px-8", isRunning ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600")}>
-              {isRunning ? <Pause className="w-5 h-5 mr-2" /> : <Play className="w-5 h-5 mr-2" />}
-              {isRunning ? "Pause" : "Start"}
-            </Button>
-
-            <Button variant="outline" size="icon" onClick={recordLap} disabled={!isRunning || permissionDenied}>
-              <Flag className="w-5 h-5" />
-            </Button>
-          </CardFooter>
-        </Card>
-
-        {isHeartRateConnected && (
-          <Button variant="outline" size="sm" onClick={disconnectHeartRateMonitor} className="mt-4">
-            Disconnect Heart Rate Monitor
-          </Button>
-        )}
+              {activityCompleted && (
+                <div className="flex justify-center p-4 border-t">
+                  <Button variant="outline" onClick={exportGPX} className="flex items-center gap-1 rounded-full">
+                    <Download className="w-4 h-4" />
+                    Export GPX
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </>
   );
