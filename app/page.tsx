@@ -67,8 +67,6 @@ interface BluetoothRemoteGATTCharacteristic {
   value?: DataView;
 }
 
-// Add Web Bluetooth API type declarations
-// Define BluetoothServiceUUID type
 type BluetoothServiceUUID = string | number;
 
 interface BluetoothType {
@@ -641,6 +639,14 @@ export default function RunningTracker() {
           <Flag className="w-6 h-6" />
         </Button>
       </div>
+      {activityCompleted && (
+        <div className="flex justify-center p-4 border-t">
+          <Button variant="outline" onClick={exportGPX} className="flex items-center gap-1 rounded-full">
+            <Download className="w-4 h-4" />
+            Export GPX
+          </Button>
+        </div>
+      )}
 
       {isHeartRateConnected && (
         <Button variant="outline" size="sm" onClick={disconnectHeartRateMonitor} className="mx-auto mb-4 rounded-full">
@@ -650,7 +656,7 @@ export default function RunningTracker() {
 
       {/* Laps section */}
       {laps.length > 0 && (
-        <div className="mt-4">
+        <div>
           <h3 className="mb-2 font-semibold">Laps</h3>
           <div className="max-h-40 overflow-y-auto">
             <table className="w-full text-sm">
@@ -737,15 +743,6 @@ export default function RunningTracker() {
           ) : (
             <>
               <div className="gap-4 flex-col flex mb-2">{renderStatsPanel()}</div>
-
-              {activityCompleted && (
-                <div className="flex justify-center p-4 border-t">
-                  <Button variant="outline" onClick={exportGPX} className="flex items-center gap-1 rounded-full">
-                    <Download className="w-4 h-4" />
-                    Export GPX
-                  </Button>
-                </div>
-              )}
             </>
           )}
         </div>
