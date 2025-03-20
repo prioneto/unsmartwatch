@@ -1,4 +1,4 @@
-# Unsmartwatch
+# [Unsmartwatch](https://unsmartwatch.vercel.app/)
 
 A web-based running tracker that turns your smartphone into a smartwatch alternative. Track your runs with GPS, heart rate monitoring, and export your activities in GPX format.
 
