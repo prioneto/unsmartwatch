@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Pause, Play, RotateCcw, Flag, Heart, Download, Bluetooth, X } from "lucide-react";
+import { Pause, Play, RotateCcw, Flag, Heart, Download, Bluetooth } from "lucide-react";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
@@ -116,7 +116,6 @@ export default function RunningTracker() {
   const [bluetoothSupported, setBluetoothSupported] = useState(true);
   const [activityCompleted, setActivityCompleted] = useState(false);
   const [activity, setActivity] = useState<Activity | null>(null);
-  const [showFullMap, setShowFullMap] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const lastPositionsRef = useRef<Position[]>([]);
@@ -543,14 +542,12 @@ export default function RunningTracker() {
     return positions.filter((pos) => pos.timestamp >= cutoff);
   };
 
-  // Show the full-screen map view
-  const toggleFullMap = () => {
-    setShowFullMap(!showFullMap);
-  };
-
   // Main stats panel
   const renderStatsPanel = () => (
     <>
+      <div>
+        <h2 className="font-bold text-center">Unsmartwatch</h2>
+      </div>
       {/* Top stats grid */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="flex flex-col items-center p-4 bg-white rounded-2xl shadow-sm">
@@ -592,7 +589,7 @@ export default function RunningTracker() {
                   <DialogDescription>Select your Bluetooth heart rate monitor device.</DialogDescription>
                 </DialogHeader>
 
-                {!bluetoothSupported ? (
+                {bluetoothSupported ? (
                   <Alert variant="destructive">
                     <AlertDescription>Web Bluetooth is not supported in your browser. Please use Chrome or Edge on desktop or Android.</AlertDescription>
                   </Alert>
@@ -689,40 +686,6 @@ export default function RunningTracker() {
 
   return (
     <>
-      {/* Full screen map when toggled */}
-      {showFullMap && (
-        <div className="fixed inset-0 z-50 bg-white">
-          <div className="h-screen relative">
-            <RunningMap positions={positions} currentPosition={positions.length > 0 ? positions[positions.length - 1] : undefined} fullScreen />
-            <Button variant="outline" size="icon" className="absolute top-4 right-4 bg-white shadow-md rounded-full" onClick={toggleFullMap}>
-              <X className="w-4 h-4" />
-            </Button>
-            <div className="absolute bottom-24 left-0 right-0 flex justify-center">
-              <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg flex items-center gap-4">
-                <div className="text-center">
-                  <div className="text-xs text-gray-500">Distance</div>
-                  <div className="font-bold">{formatDistance(distance)} km</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs text-gray-500">Time</div>
-                  <div className="font-bold">{formatTime(time)}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs text-gray-500">Pace</div>
-                  <div className="font-bold">{currentPace}</div>
-                </div>
-                {isHeartRateConnected && (
-                  <div className="text-center">
-                    <div className="text-xs text-gray-500">Heart Rate</div>
-                    <div className="font-bold text-red-500">{heartRate || "--"}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-col h-screen">
         {/* App content */}
         <div className="flex-1 flex flex-col p-4">
