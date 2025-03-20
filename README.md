@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Unsmartwatch
+
+A web-based running tracker that turns your smartphone into a smartwatch alternative. Track your runs with GPS, heart rate monitoring, and export your activities in GPX format.
+
+## Features
+
+- 🗺️ Real-time GPS tracking
+- ❤️ Bluetooth heart rate monitor support
+- ⏱️ Lap tracking
+- 📊 Live statistics (pace, distance, time)
+- 📱 PWA support for offline use
+- 💾 GPX export for compatibility with other platforms
+- 🗺️ OpenStreetMap integration
+- 📍 High-accuracy location tracking
+- 🔋 Battery-efficient background tracking
+
+## Tech Stack
+
+- Next.js 14 with App Router
+- TypeScript
+- Tailwind CSS
+- Leaflet for maps
+- Web Bluetooth API
+- Geolocation API
+- Service Workers for PWA
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18.x or later
+- npm or yarn
+- Chrome/Edge browser for Web Bluetooth support
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/unsmartwatch.git
+
+# Navigate to the project directory
+cd unsmartwatch
+
+# Install dependencies
+npm install
+
+# Start the development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Running with HTTPS (required for Geolocation)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Install mkcert
+brew install mkcert
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Install local CA
+mkcert -install
 
-## Learn More
+# Create certificates
+mkcert localhost
 
-To learn more about Next.js, take a look at the following resources:
+# Start with HTTPS
+HTTPS=true npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Usage
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Open the app in Chrome or Edge browser
+2. Allow location permissions when prompted
+3. (Optional) Connect a Bluetooth heart rate monitor
+4. Press the play button to start tracking
+5. Use lap button to mark segments
+6. Press stop when finished
+7. Export your activity in GPX format
 
-## Deploy on Vercel
+## Browser Compatibility
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Chrome (desktop & Android)
+- Edge (desktop)
+- Safari (limited functionality, no Bluetooth)
+- Firefox (limited functionality, no Bluetooth)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API Reference
+
+### Bluetooth Heart Rate Monitor
+
+The app supports any heart rate monitor that implements the standard Bluetooth GATT Heart Rate Service (0x180D).
+
+### GPX Export
+
+Activities are exported in standard GPX 1.1 format with extensions for:
+
+- Heart rate data
+- Elevation data (when available)
+- Timestamps
+- Accuracy information
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details
+
+## Acknowledgments
+
+- OpenStreetMap contributors for map data
+- Leaflet.js team
+- shadcn/ui for UI components
